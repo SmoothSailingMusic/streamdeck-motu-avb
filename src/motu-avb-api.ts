@@ -8,7 +8,7 @@ export type MotuDatastoreResponse = Record<string, string | number>;
 export type MotuGetResponse = { value: string | number };
 
 
-const BOOLEAN_CHANNELS = ["send", "enable", "mute", "solo", "mode", "limit"]; 
+const BOOLEAN_CHANNELS = ["send", "enable", "mute", "solo", "mode", "limit"];
 const FLOAT_CHANNELS = [
     "fader",
     "ratio",
@@ -44,9 +44,11 @@ export class MotuApi {
     private motuUrl: string | null = null;
 
     updateDatetime: Date | null = null;
-    booleanRegex: RegExp = new RegExp(`^mix\\/(.*)\\/(.*)\\/(.*)\\/(${BOOLEAN_CHANNELS.join('|')})$`);
-    floatRegex: RegExp = new RegExp(`^mix\\/(.*)\\/(.*)\\/(.*)\\/(${FLOAT_CHANNELS.join('|')})$`);
-    allRegex: RegExp = new RegExp(`^mix\\/(.*)\\/(.*)\\/(.*)\\/(${ALL_CHANNELS.join('|')})$`);
+    // NB: plain forward slashes - RegExp-constructor strings do not need
+    // escaped slashes, and escaping them here is an easy bug source.
+    booleanRegex: RegExp = new RegExp(`^mix/(.*)/(.*)/(.*)/(${BOOLEAN_CHANNELS.join('|')})$`);
+    floatRegex: RegExp = new RegExp(`^mix/(.*)/(.*)/(.*)/(${FLOAT_CHANNELS.join('|')})$`);
+    allRegex: RegExp = new RegExp(`^mix/(.*)/(.*)/(.*)/(${ALL_CHANNELS.join('|')})$`);
 
     private constructor() {}
 
