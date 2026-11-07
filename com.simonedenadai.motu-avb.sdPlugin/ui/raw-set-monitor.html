@@ -1,0 +1,56 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Raw Set Monitor Property Inspector</title>
+    <script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <sdpi-item>
+        <div class="title-with-help">
+            <h3>API Connection</h3>
+            <button class="help-button">[Help]</button>
+            <div style="display: none">
+                For compatible MOTU AVB devices, the API URL is the URL of your MOTU device web interface, adding a "<b>/datastore</b>" at the end.
+            </div>
+        </div>
+    </sdpi-item>
+
+    <form id="connection-form">
+        <sdpi-item label="API URL" title="Enter your MOTU AVB Datastore API URL">
+            <sdpi-textfield
+                id="motuUrl"
+                placeholder="http://localhost:1280/abc123/datastore"
+                pattern="https?:\/\/[^\s/:]+(?::\d+)?(?:\/\S*)?"
+                required
+            ></sdpi-textfield>
+        </sdpi-item>
+
+        <sdpi-item>
+            <sdpi-button id="connection-button">Connect</sdpi-button>
+        </sdpi-item>
+    </form>
+
+    <sdpi-item>
+        <div class="title-with-help">
+            <h3>Targets</h3>
+            <button class="help-button">[Help]</button>
+            <div style="display: none">
+                One <b>endpoint=value</b> pair per line. Pressing the key PATCHes <i>every</i> pair.
+                The key shows its ARMED state only while the live datastore matches <i>all</i> pairs,
+                so the indicator always reflects the real routing - it cannot go stale.<br/><br/>
+                Example (stereo pair):<br/>
+                ext/obank/0/ch/14/src=0:2<br/>
+                ext/obank/0/ch/15/src=0:3<br/><br/>
+                An empty value after the "=" is sent as an empty string ("").
+            </div>
+        </div>
+    </sdpi-item>
+
+    <sdpi-item label="Targets">
+        <sdpi-textarea id="targets" setting="targets" placeholder="ext/obank/0/ch/14/src=0:2&#10;ext/obank/0/ch/15/src=0:3" rows="4"></sdpi-textarea>
+    </sdpi-item>
+
+    <script src="raw-set-monitor.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 {
 	"Name": "MOTU AVB",
-	"Version": "2.2.0.0",
+	"Version": "2.3.0.0",
 	"Author": "Simone De Nadai",
 	"URL": "https://github.com/Hecsall/streamdeck-motu-avb",
 	"Actions": [
@@ -70,6 +70,24 @@
 				},
 				{
 					"Image": "imgs/actions/raw-toggle/toggle-on"
+				}
+			]
+		},
+		{
+			"Name": "Raw Set Monitor",
+			"UUID": "com.simonedenadai.motu-avb.rawsetmonitor",
+			"Icon": "imgs/actions/raw-set-monitor/icon",
+			"Tooltip": "Set one or more MOTU AVB endpoints and monitor the live datastore state (armed/unarmed)",
+			"PropertyInspectorPath": "ui/raw-set-monitor.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/raw-set-monitor/unarmed"
+				},
+				{
+					"Image": "imgs/actions/raw-set-monitor/armed"
 				}
 			]
 		},

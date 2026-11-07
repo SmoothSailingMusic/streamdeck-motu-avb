@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
+  <rect x="4" y="4" width="64" height="64" rx="10" fill="#2d2d2d"/>
+  <text x="36" y="30" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">MON</text>
+  <path d="M22 44 L36 36 L50 44" stroke="#8ab4ff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 52 L36 44 L50 52" stroke="#8ab4ff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
