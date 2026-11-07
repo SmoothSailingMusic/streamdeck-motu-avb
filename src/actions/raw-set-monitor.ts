@@ -15,9 +15,13 @@ import { Datastore, MotuPoller } from "../motu-poller";
  * targets: newline-separated "endpoint=value" pairs. On press EVERY pair is
  * PATCHed; the button shows state 1 (armed) only while the live datastore
  * matches ALL pairs, so the indicator can never go stale.
+ * undoTargets: optional second pair list. When present AND the button is
+ * currently armed (per the LIVE datastore), a press restores those instead -
+ * a toggle decided by device truth, not a press counter.
  */
 type RawSetMonitorSettings = {
     targets?: string;
+    undoTargets?: string;
 };
 
 type Pair = { endpoint: string; value: string };
@@ -55,20 +59,26 @@ export class RawSetMonitor extends SingletonAction<RawSetMonitorSettings> {
     private settingsCache = new Map<string, RawSetMonitorSettings>();
 
     override async onKeyDown(ev: KeyDownEvent<RawSetMonitorSettings>): Promise<void> {
-        const pairs = parseTargets(ev.payload.settings.targets);
+        const settings = ev.payload.settings;
+        const pairs = parseTargets(settings.targets);
         if (pairs.length === 0) {
             ev.action.showAlert();
             return;
         }
-        if (pairs.length === 1) {
-            await this.motuApi.patch(pairs[0].endpoint, pairs[0].value);
+        const undo = parseTargets(settings.undoTargets);
+        // Device-truth toggle: when undo targets exist and the live datastore
+        // says we're armed, this press restores them; otherwise it engages.
+        const restoring = undo.length > 0 && isArmed(pairs, this.poller.getSnapshot());
+        const effective = restoring ? undo : pairs;
+        if (effective.length === 1) {
+            await this.motuApi.patch(effective[0].endpoint, effective[0].value);
         } else {
             // atomic multi-key write: no intermediate state for the long-poll to echo
-            await this.motuApi.patchMany(pairs);
+            await this.motuApi.patchMany(effective);
         }
         // don't wait for the long-poll to wake: pull state right now
         void this.poller.refreshNow();
-        await this.refresh(ev.action as KeyAction<RawSetMonitorSettings>, ev.payload.settings);
+        await this.refresh(ev.action as KeyAction<RawSetMonitorSettings>, settings);
     }
 
     override async onWillAppear(ev: WillAppearEvent<RawSetMonitorSettings>): Promise<void> {

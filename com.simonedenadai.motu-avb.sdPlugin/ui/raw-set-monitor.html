@@ -51,6 +51,25 @@
         <sdpi-textarea id="targets" setting="targets" placeholder="ext/obank/0/ch/14/src=0:2&#10;ext/obank/0/ch/15/src=0:3" rows="4"></sdpi-textarea>
     </sdpi-item>
 
+    <sdpi-item>
+        <div class="title-with-help">
+            <h3>Undo targets (optional toggle)</h3>
+            <button class="help-button">[Help]</button>
+            <div style="display: none">
+                Leave empty for a pure engage button. When filled, a press on an <b>armed</b>
+                button restores these pairs instead - decided from the LIVE datastore at press
+                time, never from a press counter, so it cannot desync.<br/><br/>
+                Example (restore From-Computer):<br/>
+                ext/obank/0/ch/14/src=3:14<br/>
+                ext/obank/0/ch/15/src=3:15
+            </div>
+        </div>
+    </sdpi-item>
+
+    <sdpi-item label="Undo targets">
+        <sdpi-textarea id="undoTargets" setting="undoTargets" placeholder="ext/obank/0/ch/14/src=3:14&#10;ext/obank/0/ch/15/src=3:15" rows="4"></sdpi-textarea>
+    </sdpi-item>
+
     <script src="raw-set-monitor.js"></script>
 </body>
 </html>
