@@ -42,12 +42,17 @@ function isArmed(pairs: Pair[], ds: Datastore): boolean {
 /**
  * Set one or more MOTU AVB endpoints and monitor the live datastore so the
  * key reflects the ACTUAL routing state (armed / unarmed), not a press count.
+ *
+ * NOTE: settings come from event payloads / a per-key cache, NEVER from
+ * action.getSettings() - that call re-triggers onDidReceiveSettings, which
+ * would make every refresh recursively schedule another one.
  */
 @action({ UUID: "com.simonedenadai.motu-avb.rawsetmonitor" })
 export class RawSetMonitor extends SingletonAction<RawSetMonitorSettings> {
     private motuApi = MotuApi.getInstance();
     private poller = MotuPoller.getInstance();
     private watchers = new Map<string, (ds: Datastore) => void>();
+    private settingsCache = new Map<string, RawSetMonitorSettings>();
 
     override async onKeyDown(ev: KeyDownEvent<RawSetMonitorSettings>): Promise<void> {
         const pairs = parseTargets(ev.payload.settings.targets);
@@ -58,12 +63,15 @@ export class RawSetMonitor extends SingletonAction<RawSetMonitorSettings> {
         for (const p of pairs) {
             await this.motuApi.patch(p.endpoint, p.value);
         }
-        await this.refresh(ev.action as KeyAction<RawSetMonitorSettings>);
+        // don't wait for the long-poll to wake: pull state right now
+        void this.poller.refreshNow();
+        await this.refresh(ev.action as KeyAction<RawSetMonitorSettings>, ev.payload.settings);
     }
 
     override async onWillAppear(ev: WillAppearEvent<RawSetMonitorSettings>): Promise<void> {
         const keyAction = ev.action as KeyAction<RawSetMonitorSettings>;
-        await this.refresh(keyAction);
+        this.settingsCache.set(keyAction.id, ev.payload.settings);
+        await this.refresh(keyAction, ev.payload.settings);
         this.watch(keyAction);
     }
 
@@ -73,27 +81,32 @@ export class RawSetMonitor extends SingletonAction<RawSetMonitorSettings> {
             this.poller.unsubscribe(fn);
             this.watchers.delete(ev.action.id);
         }
+        this.settingsCache.delete(ev.action.id);
     }
 
     override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<RawSetMonitorSettings>): Promise<void> {
-        await this.refresh(ev.action as KeyAction<RawSetMonitorSettings>);
-        this.watch(ev.action as KeyAction<RawSetMonitorSettings>);
+        const keyAction = ev.action as KeyAction<RawSetMonitorSettings>;
+        this.settingsCache.set(keyAction.id, ev.payload.settings);
+        await this.refresh(keyAction, ev.payload.settings);
+        this.watch(keyAction);
     }
 
     private watch(action: KeyAction<RawSetMonitorSettings>): void {
         if (this.watchers.has(action.id)) return;
         const fn = () => {
-            void this.refresh(action);
+            void this.refresh(action, this.settingsCache.get(action.id));
         };
         this.watchers.set(action.id, fn);
         this.poller.subscribe(fn);
     }
 
-    private async refresh(action: KeyAction<RawSetMonitorSettings>): Promise<void> {
+    private async refresh(
+        action: KeyAction<RawSetMonitorSettings>,
+        settings?: RawSetMonitorSettings,
+    ): Promise<void> {
         try {
             if (action.isInMultiAction()) return;
-            const settings = await action.getSettings();
-            const pairs = parseTargets(settings.targets);
+            const pairs = parseTargets((settings ?? this.settingsCache.get(action.id))?.targets);
             if (pairs.length === 0) return;
             action.setState(isArmed(pairs, this.poller.getSnapshot()) ? 1 : 0);
         } catch (e) {

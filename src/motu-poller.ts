@@ -43,6 +43,34 @@ export class MotuPoller {
         return this.snapshot;
     }
 
+    /**
+     * Immediate plain fetch + notify (no If-None-Match). Used right after the
+     * plugin itself PATCHes values so pressed buttons reflect state instantly
+     * instead of waiting for the held long-poll to wake.
+     */
+    async refreshNow(): Promise<void> {
+        const url = MotuApi.getInstance().getUrl();
+        if (!url) return;
+        try {
+            const res = await fetch(url);
+            if (res.ok) {
+                const etag = res.headers.get("etag");
+                if (etag) this.etag = etag;
+                const data = (await res.json()) as Datastore;
+                this.snapshot = data;
+                for (const fn of [...this.listeners]) {
+                    try {
+                        fn(data);
+                    } catch (e) {
+                        streamDeck.logger.error(`[MotuPoller] listener error: ${e}`);
+                    }
+                }
+            }
+        } catch (e) {
+            streamDeck.logger.warn(`[MotuPoller] refreshNow error: ${e}`);
+        }
+    }
+
     private start(): void {
         if (this.running) return;
         this.running = true;
