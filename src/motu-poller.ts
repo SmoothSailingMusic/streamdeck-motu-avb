@@ -44,6 +44,36 @@ export class MotuPoller {
     }
 
     /**
+     * The device ETag is a numeric change counter - lower means an OLDER
+     * snapshot. A held long-poll woken mid-write-burst can return a snapshot
+     * older than one we already delivered; never notify (or regress the etag)
+     * with such stale data.
+     */
+    private static etagRank(etag: string | null): number | null {
+        if (!etag) return null;
+        const t = etag.trim().replace(/^W\//, "").replace(/"/g, "");
+        return /^\d+$/.test(t) ? parseInt(t, 10) : null;
+    }
+
+    private accept(data: Datastore, etag: string | null): boolean {
+        const rank = MotuPoller.etagRank(etag);
+        const last = MotuPoller.etagRank(this.etag);
+        if (rank !== null && last !== null && rank < last) return false;
+        if (etag) this.etag = etag;
+        return true;
+    }
+
+    private notify(data: Datastore): void {
+        for (const fn of [...this.listeners]) {
+            try {
+                fn(data);
+            } catch (e) {
+                streamDeck.logger.error(`[MotuPoller] listener error: ${e}`);
+            }
+        }
+    }
+
+    /**
      * Immediate plain fetch + notify (no If-None-Match). Used right after the
      * plugin itself PATCHes values so pressed buttons reflect state instantly
      * instead of waiting for the held long-poll to wake.
@@ -55,15 +85,10 @@ export class MotuPoller {
             const res = await fetch(url);
             if (res.ok) {
                 const etag = res.headers.get("etag");
-                if (etag) this.etag = etag;
                 const data = (await res.json()) as Datastore;
-                this.snapshot = data;
-                for (const fn of [...this.listeners]) {
-                    try {
-                        fn(data);
-                    } catch (e) {
-                        streamDeck.logger.error(`[MotuPoller] listener error: ${e}`);
-                    }
+                if (this.accept(data, etag)) {
+                    this.snapshot = data;
+                    this.notify(data);
                 }
             }
         } catch (e) {
@@ -100,17 +125,12 @@ export class MotuPoller {
 
                 if (res.ok) {
                     const etag = res.headers.get("etag");
-                    if (etag) this.etag = etag;
                     const data = (await res.json()) as Datastore;
-                    this.snapshot = data;
-                    for (const fn of [...this.listeners]) {
-                        try {
-                            fn(data);
-                        } catch (e) {
-                            streamDeck.logger.error(`[MotuPoller] listener error: ${e}`);
-                        }
+                    if (this.accept(data, etag)) {
+                        this.snapshot = data;
+                        this.notify(data);
                     }
-                    if (!etag) {
+                    if (!res.headers.get("etag")) {
                         // server does not support If-None-Match: fall back to 2s polling
                         // instead of refetching in a tight loop (which can wedge it)
                         await sleep(2000);

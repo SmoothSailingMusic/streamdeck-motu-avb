@@ -60,8 +60,11 @@ export class RawSetMonitor extends SingletonAction<RawSetMonitorSettings> {
             ev.action.showAlert();
             return;
         }
-        for (const p of pairs) {
-            await this.motuApi.patch(p.endpoint, p.value);
+        if (pairs.length === 1) {
+            await this.motuApi.patch(pairs[0].endpoint, pairs[0].value);
+        } else {
+            // atomic multi-key write: no intermediate state for the long-poll to echo
+            await this.motuApi.patchMany(pairs);
         }
         // don't wait for the long-poll to wake: pull state right now
         void this.poller.refreshNow();

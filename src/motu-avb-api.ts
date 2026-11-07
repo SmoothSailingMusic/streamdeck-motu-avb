@@ -44,9 +44,9 @@ export class MotuApi {
     private motuUrl: string | null = null;
 
     updateDatetime: Date | null = null;
-    booleanRegex: RegExp = new RegExp(`^mix\/(.*)\/(.*)\/(.*)\/(${BOOLEAN_CHANNELS.join('|')})$`);
-    floatRegex: RegExp = new RegExp(`^mix\/(.*)\/(.*)\/(.*)\/(${FLOAT_CHANNELS.join('|')})$`);
-    allRegex: RegExp = new RegExp(`^mix\/(.*)\/(.*)\/(.*)\/(${ALL_CHANNELS.join('|')})$`);
+    booleanRegex: RegExp = new RegExp(`^mix\\/(.*)\\/(.*)\\/(.*)\\/(${BOOLEAN_CHANNELS.join('|')})$`);
+    floatRegex: RegExp = new RegExp(`^mix\\/(.*)\\/(.*)\\/(.*)\\/(${FLOAT_CHANNELS.join('|')})$`);
+    allRegex: RegExp = new RegExp(`^mix\\/(.*)\\/(.*)\\/(.*)\\/(${ALL_CHANNELS.join('|')})$`);
 
     private constructor() {}
 
@@ -121,6 +121,44 @@ export class MotuApi {
                 ...datastore,
                 [endpoint]: value
             }
+        });
+
+        return
+    }
+
+    /**
+     * PATCH several endpoints ATOMICALLY (single request to the datastore root,
+     * multi-key json body - verified on the device: HTTP 204, all keys applied).
+     * Avoids intermediate states between per-endpoint writes, which the
+     * long-poll can otherwise observe and echo back to monitor buttons.
+     */
+    async patchMany(pairs: { endpoint: string; value: any }[]): Promise<void> {
+        if (!this.motuUrl) throw new Error("MOTU URL not set");
+        if (pairs.length === 0) return;
+
+        const body: Record<string, any> = {};
+        for (const p of pairs) body[p.endpoint] = p.value;
+
+        streamDeck.logger.trace(`["MotuApi"] patchMany`, Object.keys(body));
+        const formData = new FormData();
+        formData.append("json", JSON.stringify(body));
+
+        const res = await fetch(this.motuUrl, {
+            method: "PATCH",
+            body: formData
+        });
+
+        if (!res.ok) {
+            throw new Error(`PATCH(${Object.keys(body).length} keys) failed: ${res.status}`);
+        }
+
+        // Update globalSettings datastore
+        const globalSettings = await streamDeck.settings.getGlobalSettings();
+        const datastore = (globalSettings.datastore as JsonObject) || {};
+        for (const p of pairs) datastore[p.endpoint] = p.value;
+        streamDeck.settings.setGlobalSettings({
+            ...globalSettings,
+            datastore
         });
 
         return
